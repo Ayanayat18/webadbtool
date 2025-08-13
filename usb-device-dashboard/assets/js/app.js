@@ -53,8 +53,18 @@
 		try {
 			if (!supportsWebUsb()) return;
 			const filters = [
-				{ vendorId: 0x18D1 }, // Google (Android)
+				{ classCode: 0xFF, subclassCode: 0x42 }, // ADB/Fastboot interface
+				{ classCode: 0xFF }, // any vendor-specific interface
+				{ vendorId: 0x18D1 }, // Google
 				{ vendorId: 0x04E8 }, // Samsung
+				{ vendorId: 0x2717 }, // Xiaomi
+				{ vendorId: 0x2A70 }, // OnePlus
+				{ vendorId: 0x22B8 }, // Motorola
+				{ vendorId: 0x12D1 }, // Huawei
+				{ vendorId: 0x0FCE }, // Sony Mobile
+				{ vendorId: 0x1004 }, // LG
+				{ vendorId: 0x22D9 }, // OPPO/Realme
+				{ vendorId: 0x2D95 }, // vivo
 			];
 			const device = await navigator.usb.requestDevice({ filters });
 			try { await device.open(); } catch (_) {}
@@ -75,7 +85,6 @@
 				});
 				refreshFastbootGetvars();
 			} else if (context === 'adb') {
-				// Try to match selected device by serial to ADB id
 				const serial = info.serial;
 				const afterList = (list) => {
 					const devs = Array.isArray(list) ? list : [];
