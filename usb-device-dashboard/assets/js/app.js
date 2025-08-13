@@ -1,0 +1,140 @@
+(function () {
+	'use strict';
+
+	function $(sel) { return document.querySelector(sel); }
+	function $all(sel) { return Array.from(document.querySelectorAll(sel)); }
+
+	function renderTable(container, obj) {
+		const entries = Object.entries(obj || {}).filter(([, v]) => String(v).trim() !== '');
+		if (entries.length === 0) { container.innerHTML = '<div class="text-muted">No data.</div>'; return; }
+		let html = '<div class="table-responsive"><table class="table table-sm table-hover align-middle mb-0">';
+		html += '<tbody>';
+		for (const [k, v] of entries) {
+			html += `<tr><th class="text-nowrap" style="width: 220px;">${escapeHtml(k)}</th><td>${escapeHtml(String(v))}</td></tr>`;
+		}
+		html += '</tbody></table></div>';
+		container.innerHTML = html;
+	}
+
+	function escapeHtml(s) {
+		return s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+	}
+
+	function get(url) {
+		return fetch(url, {cache: 'no-store'}).then(r => r.json());
+	}
+
+	// Theme toggle
+	(function initTheme() {
+		const btn = $('#themeToggle');
+		const root = document.documentElement;
+		const saved = localStorage.getItem('theme');
+		if (saved) root.setAttribute('data-bs-theme', saved);
+		btn?.addEventListener('click', () => {
+			const current = root.getAttribute('data-bs-theme') || 'light';
+			const next = current === 'light' ? 'dark' : 'light';
+			root.setAttribute('data-bs-theme', next);
+			localStorage.setItem('theme', next);
+		});
+	})();
+
+	// Fastboot
+	function refreshFastbootAuto() {
+		get('api/fastboot.php?action=auto').then(j => {
+			if (!j.ok) { $('#fastbootSummary').innerHTML = '<div class="text-danger">Error</div>'; return; }
+			renderTable($('#fastbootSummary'), j.data.summary || {});
+			$('#fastbootRaw').textContent = JSON.stringify(j.data.vars || {}, null, 2);
+			if (j.data.serial) { $('#fastbootSerial').value = j.data.serial; }
+		});
+	}
+	function refreshFastbootGetvars() {
+		const serial = $('#fastbootSerial').value.trim();
+		const qs = serial ? `&serial=${encodeURIComponent(serial)}` : '';
+		get('api/fastboot.php?action=getvars' + qs).then(j => {
+			renderTable($('#fastbootSummary'), j.data.summary || {});
+			$('#fastbootRaw').textContent = JSON.stringify(j.data.vars || {}, null, 2);
+		});
+	}
+	$('#fastbootRefresh')?.addEventListener('click', refreshFastbootAuto);
+	$('#fastbootGetvars')?.addEventListener('click', refreshFastbootGetvars);
+
+	// ADB
+	function adbAuto() {
+		get('api/adb.php?action=auto').then(j => {
+			renderTable($('#adbSummary'), j.data.summary || {});
+			$('#adbRaw').textContent = JSON.stringify(j.data.props || {}, null, 2);
+		});
+	}
+	function adbList() {
+		get('api/adb.php?action=devices').then(j => {
+			const list = j.data || [];
+			const container = $('#adbDevices');
+			if (list.length === 0) { container.innerHTML = '<div class="text-muted">No ADB devices.</div>'; return; }
+			container.innerHTML = list.map(d => `
+				<div class="col-12 col-md-6 col-lg-4">
+					<div class="card card-body p-2">
+						<div class="d-flex justify-content-between align-items-center">
+							<div>
+								<div class="fw-semibold">${escapeHtml(d.id)}</div>
+								<div class="text-muted small">${escapeHtml(d.status)}</div>
+							</div>
+							<button class="btn btn-sm btn-outline-primary" data-adb-id="${escapeHtml(d.id)}">Select</button>
+						</div>
+					</div>
+				</div>
+			`).join('');
+			$all('[data-adb-id]').forEach(btn => btn.addEventListener('click', () => adbProps(btn.getAttribute('data-adb-id'))));
+		});
+	}
+	function adbProps(id) {
+		get('api/adb.php?action=props&id=' + encodeURIComponent(id)).then(j => {
+			renderTable($('#adbSummary'), j.data.summary || {});
+			$('#adbRaw').textContent = JSON.stringify(j.data.props || {}, null, 2);
+		});
+	}
+	$('#adbAuto')?.addEventListener('click', adbAuto);
+	$('#adbList')?.addEventListener('click', adbList);
+
+	// MTP
+	function mtp() {
+		get('api/mtp.php?action=detect').then(j => {
+			$('#adbRaw').textContent = typeof j.data.raw === 'string' ? j.data.raw : JSON.stringify(j.data, null, 2);
+		});
+	}
+	$('#mtpDetect')?.addEventListener('click', mtp);
+
+	// Samsung
+	function samsungAuto() {
+		get('api/samsung.php?action=auto').then(j => {
+			$('#samsungRaw').textContent = (j.data.output?.stdout || '') + '\n' + (j.data.output?.stderr || '');
+		});
+	}
+	function samsungList() {
+		get('api/samsung.php?action=ports').then(j => {
+			const ports = j.data || [];
+			const container = $('#samsungPorts');
+			if (ports.length === 0) { container.innerHTML = '<div class="text-muted">No ports detected.</div>'; return; }
+			container.innerHTML = ports.map(p => `
+				<div class="col-12 col-md-6 col-lg-4">
+					<div class="card card-body p-2 d-flex justify-content-between align-items-center flex-row">
+						<div class="fw-semibold">${escapeHtml(p.port)}</div>
+						<button class="btn btn-sm btn-outline-primary" data-port="${escapeHtml(p.port)}">Probe</button>
+					</div>
+				</div>
+			`).join('');
+			$all('[data-port]').forEach(btn => btn.addEventListener('click', () => samsungProbe(btn.getAttribute('data-port'))));
+		});
+	}
+	function samsungProbe(port) {
+		get('api/samsung.php?action=probe&port=' + encodeURIComponent(port)).then(j => {
+			$('#samsungRaw').textContent = (j.data.output?.stdout || '') + '\n' + (j.data.output?.stderr || '');
+		});
+	}
+	$('#samsungAuto')?.addEventListener('click', samsungAuto);
+	$('#samsungList')?.addEventListener('click', samsungList);
+
+	// Auto load
+	refreshFastbootAuto();
+	adbAuto();
+	// samsungAuto(); // do not auto run heimdall unless requested
+})();

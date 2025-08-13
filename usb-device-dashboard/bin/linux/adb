@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+SELF="$(readlink -f "$0" 2>/dev/null || realpath "$0" 2>/dev/null || echo "$0")"
+DIR="$(dirname "$SELF")"
+BIN="$DIR/adb.bin"
+if [ -x "$BIN" ]; then exec "$BIN" "$@"; fi
+if command -v adb >/dev/null 2>&1; then
+	FOUND="$(command -v adb)"
+	if [ "$FOUND" != "$SELF" ]; then exec "$FOUND" "$@"; fi
+fi
+echo "adb not found. Place Platform-Tools 'adb' as $BIN or install adb in PATH." >&2
+exit 127

@@ -1,0 +1,10 @@
+body {
+	font-feature-settings: "tnum";
+}
+pre {
+	white-space: pre-wrap;
+	word-break: break-word;
+}
+.card-body .btn {
+	white-space: nowrap;
+}

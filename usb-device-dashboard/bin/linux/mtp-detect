@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+SELF="$(readlink -f "$0" 2>/dev/null || realpath "$0" 2>/dev/null || echo "$0")"
+DIR="$(dirname "$SELF")"
+BIN="$DIR/mtp-detect.bin"
+if [ -x "$BIN" ]; then exec "$BIN" "$@"; fi
+if command -v mtp-detect >/dev/null 2>&1; then
+	FOUND="$(command -v mtp-detect)"
+	if [ "$FOUND" != "$SELF" ]; then exec "$FOUND" "$@"; fi
+fi
+echo "mtp-detect not found. Place 'mtp-detect' as $BIN or install mtp-tools in PATH." >&2
+exit 127
