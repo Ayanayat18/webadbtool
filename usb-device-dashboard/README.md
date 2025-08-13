@@ -8,7 +8,7 @@ Plug-and-play PHP 8+ web app (Bootstrap 5) to read and display information from 
 - Samsung: list COM ports, probe with `heimdall print-pit`
 - Bootstrap 5 UI with light/dark toggle, responsive layout, AJAX refresh
 - Optional WebSocket server for instant actions and selection
-- Optional WebUSB device selection in browser (Chromium-based browsers)
+- Full in-browser ADB via WebUSB (Chromium-based browsers) — no server binaries required for ADB
 - No database, no installer
 
 ## Quick Start
@@ -25,10 +25,10 @@ Plug-and-play PHP 8+ web app (Bootstrap 5) to read and display information from 
    - Defaults to `ws://0.0.0.0:8081`. Configure in `config.php` under `ws`.
 6. Visit `index.php` in a Chromium-based browser for WebUSB support.
 
-## WebUSB
-- Buttons “Select via WebUSB” appear if the browser supports WebUSB.
-- Selecting a device fills the serial (when available) and attempts to match it to ADB/Fastboot for richer data.
-- Works best in Chrome/Edge on desktop with proper USB permissions.
+## WebUSB / WebADB
+- Click “Connect WebADB” to run ADB entirely in browser via WebUSB.
+- Requires Chrome/Edge on HTTPS or localhost, USB debugging enabled, and driver/udev set up.
+- “Select via WebUSB” can still be used for basic serial detection.
 
 ## Notes
 - Some shared hosts restrict USB access and process execution. For full functionality use a local machine or a VPS with USB passthrough.

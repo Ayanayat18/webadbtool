@@ -271,4 +271,49 @@
 	refreshFastbootAuto();
 	adbAuto();
 	// samsungAuto(); // do not auto run heimdall unless requested
+
+	// WebADB (in-browser ADB over WebUSB)
+	async function ensureWebAdbLoaded() {
+		if (window.WebAdb) return true;
+		try {
+			await import('./webadb.module.js');
+			return !!window.WebAdb;
+		} catch (e) {
+			console.warn('Failed to load WebADB module', e);
+			return false;
+		}
+	}
+	function showWebAdbButtonIfSupported() {
+		if (!('usb' in navigator)) return;
+		$('#adbWebAdb')?.classList.remove('d-none');
+	}
+	showWebAdbButtonIfSupported();
+	$('#adbWebAdb')?.addEventListener('click', async () => {
+		const ok = await ensureWebAdbLoaded();
+		if (!ok) return alert('Your browser does not support WebUSB or failed to load WebADB. Use Chrome/Edge over HTTPS.');
+		try {
+			const info = await window.WebAdb.connect();
+			const out = await window.WebAdb.getpropAll();
+			// Parse getprop output and render summary
+			const props = parseGetprop(out);
+			renderTable($('#adbSummary'), {
+				'Device Name': props['ro.product.model'] || '',
+				'Serial Number': props['ro.serialno'] || info.serial || '',
+				'Android Version': props['ro.build.version.release'] || '',
+				'IMEI': props['ril.gsm.imei'] || props['persist.radio.imei'] || '',
+			});
+			$('#adbRaw').textContent = out;
+		} catch (e) {
+			alert('WebADB connection failed: ' + (e?.message || e));
+		}
+	});
+
+	function parseGetprop(text) {
+		const map = {};
+		(String(text || '').split(/\r?\n/)).forEach(line => {
+			const m = line.match(/^\[(.+?)\]: \[(.*)\]$/);
+			if (m) map[m[1]] = m[2];
+		});
+		return map;
+	}
 })();

@@ -60,6 +60,7 @@ function asset_url(string $path): string {
 					<button class="btn btn-outline-secondary btn-sm" id="adbList">Select ADB Device</button>
 					<button class="btn btn-outline-secondary btn-sm" id="mtpDetect">MTP Detect</button>
 					<button class="btn btn-outline-secondary btn-sm d-none" id="adbWebUsb">Select via WebUSB</button>
+					<button class="btn btn-success btn-sm d-none" id="adbWebAdb">Connect WebADB</button>
 				</div>
 				<div id="adbDevices" class="row gy-2"></div>
 				<div id="adbSummary"></div>
