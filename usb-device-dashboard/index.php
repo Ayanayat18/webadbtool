@@ -48,6 +48,7 @@ function asset_url(string $path): string {
 						<input type="text" class="form-control" id="fastbootSerial" placeholder="Serial">
 						<button class="btn btn-outline-secondary" id="fastbootGetvars">Getvars</button>
 					</div>
+					<button class="btn btn-outline-secondary btn-sm d-none" id="fastbootWebUsb">Select via WebUSB</button>
 				</div>
 				<div id="fastbootSummary"></div>
 				<pre class="small" id="fastbootRaw"></pre>
@@ -58,6 +59,7 @@ function asset_url(string $path): string {
 					<button class="btn btn-primary btn-sm" id="adbAuto">Auto-detect</button>
 					<button class="btn btn-outline-secondary btn-sm" id="adbList">Select ADB Device</button>
 					<button class="btn btn-outline-secondary btn-sm" id="mtpDetect">MTP Detect</button>
+					<button class="btn btn-outline-secondary btn-sm d-none" id="adbWebUsb">Select via WebUSB</button>
 				</div>
 				<div id="adbDevices" class="row gy-2"></div>
 				<div id="adbSummary"></div>

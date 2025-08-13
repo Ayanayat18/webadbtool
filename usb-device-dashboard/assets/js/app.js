@@ -38,6 +38,70 @@
 		});
 	})();
 
+	// WebUSB detection and handlers
+	function supportsWebUsb() { return !!(navigator.usb && navigator.usb.requestDevice); }
+	function showWebUsbButtonsIfSupported() {
+		if (!supportsWebUsb()) return;
+		$('#fastbootWebUsb')?.classList.remove('d-none');
+		$('#adbWebUsb')?.classList.remove('d-none');
+	}
+	showWebUsbButtonsIfSupported();
+
+	function hex4(n) { return ('0000' + Number(n).toString(16)).slice(-4); }
+
+	async function selectViaWebUsb(context) {
+		try {
+			if (!supportsWebUsb()) return;
+			const filters = [
+				{ vendorId: 0x18D1 }, // Google (Android)
+				{ vendorId: 0x04E8 }, // Samsung
+			];
+			const device = await navigator.usb.requestDevice({ filters });
+			try { await device.open(); } catch (_) {}
+			const info = {
+				manufacturer: device.manufacturerName || '',
+				product: device.productName || '',
+				serial: device.serialNumber || '',
+				vendorId: device.vendorId,
+				productId: device.productId,
+			};
+			if (context === 'fastboot') {
+				if (info.serial) { $('#fastbootSerial').value = info.serial; }
+				renderTable($('#fastbootSummary'), {
+					'Manufacturer (WebUSB)': info.manufacturer,
+					'Product (WebUSB)': info.product,
+					'Serial (WebUSB)': info.serial || '(unknown)',
+					'USB VID:PID': `${hex4(info.vendorId)}:${hex4(info.productId)}`,
+				});
+				refreshFastbootGetvars();
+			} else if (context === 'adb') {
+				// Try to match selected device by serial to ADB id
+				const serial = info.serial;
+				const afterList = (list) => {
+					const devs = Array.isArray(list) ? list : [];
+					const match = devs.find(d => d.id === serial);
+					if (match) {
+						adbProps(match.id);
+					} else {
+						renderTable($('#adbSummary'), {
+							'Manufacturer (WebUSB)': info.manufacturer,
+							'Product (WebUSB)': info.product,
+							'Serial (WebUSB)': serial || '(unknown)',
+							'USB VID:PID': `${hex4(info.vendorId)}:${hex4(info.productId)}`,
+							'Note': 'No matching ADB device id found. Make sure ADB is enabled and authorized.'
+						});
+					}
+				};
+				get('api/adb.php?action=devices').then(j => afterList(j.data || [])).catch(() => afterList([]));
+			}
+		} catch (e) {
+			console.warn('WebUSB selection failed', e);
+		}
+	}
+
+	$('#fastbootWebUsb')?.addEventListener('click', () => selectViaWebUsb('fastboot'));
+	$('#adbWebUsb')?.addEventListener('click', () => selectViaWebUsb('adb'));
+
 	// WebSocket client
 	let ws = null;
 	let wsReady = false;
