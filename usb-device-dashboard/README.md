@@ -7,6 +7,7 @@ Plug-and-play PHP 8+ web app (Bootstrap 5) to read and display information from 
 - ADB/MTP: list devices, select to show `getprop`, run `mtp-detect`
 - Samsung: list COM ports, probe with `heimdall print-pit`
 - Bootstrap 5 UI with light/dark toggle, responsive layout, AJAX refresh
+- Optional WebSocket server for instant actions and selection
 - No database, no installer
 
 ## Quick Start
@@ -17,7 +18,11 @@ Plug-and-play PHP 8+ web app (Bootstrap 5) to read and display information from 
    - `bin/linux/heimdall.bin`, `bin/linux/mtp-detect.bin`
    Or install them in PATH. Wrappers in `bin/linux/*` will find them.
 4. Windows: put binaries next to wrappers in `bin/windows/` (e.g., `adb.exe`, `fastboot.exe`, `heimdall.exe`, `mtp-detect.exe`) or ensure they’re in PATH.
-5. Visit `index.php` in a browser.
+5. Optional: start WebSocket server for live actions
+   - Linux: `bin/linux/ws-server`
+   - Windows: `bin/windows/ws-server.cmd`
+   - Defaults to `ws://0.0.0.0:8081`. Configure in `config.php` under `ws`.
+6. Visit `index.php` in a browser.
 
 ## Notes
 - Some shared hosts restrict USB access and process execution. For full functionality use a local machine or a VPS with USB passthrough.
@@ -28,10 +33,11 @@ Plug-and-play PHP 8+ web app (Bootstrap 5) to read and display information from 
 - `assets/` CSS, JS, Bootstrap
 - `includes/` PHP helpers
 - `api/` endpoints: `fastboot.php`, `adb.php`, `samsung.php`, `mtp.php`
-- `bin/` wrappers for Linux/Windows
+- `bin/` wrappers for Linux/Windows incl. `ws-server`
+- `ws-server.php` minimal WebSocket server
 - `index.php` UI dashboard
 - `config.php` paths and settings
 
 ## Security
 - This app executes system commands. Host it on trusted machines only.
-- No user authentication is included.
+- WebSocket server is unauthenticated by default. Set `ws.secret` and pass via subprotocol if you expose it.

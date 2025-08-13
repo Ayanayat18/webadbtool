@@ -10,6 +10,13 @@ return [
 		'enable_debug' => true,
 		'default_timeout_seconds' => 12,
 	],
+	'ws' => [
+		'enabled' => true,
+		'bind_host' => '0.0.0.0',
+		'port' => 8081,
+		'public_url' => null, // If null, will use ws://<current-host>:<port>
+		'secret' => '', // Optional shared secret
+	],
 	'paths' => (function () {
 		$osFamily = PHP_OS_FAMILY; // 'Windows', 'Linux', 'Darwin', etc.
 		$rootDir = __DIR__;

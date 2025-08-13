@@ -38,8 +38,61 @@
 		});
 	})();
 
+	// WebSocket client
+	let ws = null;
+	let wsReady = false;
+	function wsUrl() {
+		const port = 8081;
+		const host = location.hostname;
+		const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+		return `${proto}://${host}:${port}`;
+	}
+	function wsSend(msg) {
+		if (ws && wsReady) { ws.send(JSON.stringify(msg)); return true; }
+		return false;
+	}
+	function wsConnect() {
+		try {
+			ws = new WebSocket(wsUrl());
+			ws.addEventListener('open', () => { wsReady = true; });
+			ws.addEventListener('close', () => { wsReady = false; });
+			ws.addEventListener('error', () => { wsReady = false; });
+			ws.addEventListener('message', (ev) => {
+				try {
+					const j = JSON.parse(ev.data);
+					if (!j || j.ok === false) return;
+					const a = j.action;
+					const d = j.data || {};
+					if (a === 'fastboot.auto' || a === 'fastboot.getvars') {
+						renderTable($('#fastbootSummary'), d.summary || {});
+						$('#fastbootRaw').textContent = JSON.stringify(d.vars || {}, null, 2);
+						if (d.serial) { $('#fastbootSerial').value = d.serial; }
+					}
+					if (a === 'adb.devices') {
+						renderAdbDevices(d);
+					}
+					if (a === 'adb.props') {
+						renderTable($('#adbSummary'), d.summary || {});
+						$('#adbRaw').textContent = JSON.stringify(d.props || {}, null, 2);
+					}
+					if (a === 'mtp.detect') {
+						$('#adbRaw').textContent = typeof d.raw === 'string' ? d.raw : JSON.stringify(d, null, 2);
+					}
+					if (a === 'samsung.ports') {
+						renderSamsungPorts(d);
+					}
+					if (a === 'samsung.probe') {
+						$('#samsungRaw').textContent = (d.output?.stdout || '') + '\n' + (d.output?.stderr || '');
+					}
+				} catch {}
+			});
+		} catch {}
+	}
+	wsConnect();
+
 	// Fastboot
 	function refreshFastbootAuto() {
+		if (wsSend({action: 'fastboot.auto'})) return;
 		get('api/fastboot.php?action=auto').then(j => {
 			if (!j.ok) { $('#fastbootSummary').innerHTML = '<div class="text-danger">Error</div>'; return; }
 			renderTable($('#fastbootSummary'), j.data.summary || {});
@@ -49,6 +102,7 @@
 	}
 	function refreshFastbootGetvars() {
 		const serial = $('#fastbootSerial').value.trim();
+		if (wsSend({action: 'fastboot.getvars', serial})) return;
 		const qs = serial ? `&serial=${encodeURIComponent(serial)}` : '';
 		get('api/fastboot.php?action=getvars' + qs).then(j => {
 			renderTable($('#fastbootSummary'), j.data.summary || {});
@@ -60,33 +114,36 @@
 
 	// ADB
 	function adbAuto() {
+		if (wsSend({action: 'adb.devices'})) return;
 		get('api/adb.php?action=auto').then(j => {
 			renderTable($('#adbSummary'), j.data.summary || {});
 			$('#adbRaw').textContent = JSON.stringify(j.data.props || {}, null, 2);
 		});
 	}
-	function adbList() {
-		get('api/adb.php?action=devices').then(j => {
-			const list = j.data || [];
-			const container = $('#adbDevices');
-			if (list.length === 0) { container.innerHTML = '<div class="text-muted">No ADB devices.</div>'; return; }
-			container.innerHTML = list.map(d => `
-				<div class="col-12 col-md-6 col-lg-4">
-					<div class="card card-body p-2">
-						<div class="d-flex justify-content-between align-items-center">
-							<div>
-								<div class="fw-semibold">${escapeHtml(d.id)}</div>
-								<div class="text-muted small">${escapeHtml(d.status)}</div>
-							</div>
-							<button class="btn btn-sm btn-outline-primary" data-adb-id="${escapeHtml(d.id)}">Select</button>
+	function renderAdbDevices(list) {
+		const container = $('#adbDevices');
+		if (!Array.isArray(list) || list.length === 0) { container.innerHTML = '<div class="text-muted">No ADB devices.</div>'; return; }
+		container.innerHTML = list.map(d => `
+			<div class="col-12 col-md-6 col-lg-4">
+				<div class="card card-body p-2">
+					<div class="d-flex justify-content-between align-items-center">
+						<div>
+							<div class="fw-semibold">${escapeHtml(d.id)}</div>
+							<div class="text-muted small">${escapeHtml(d.status)}</div>
 						</div>
+						<button class="btn btn-sm btn-outline-primary" data-adb-id="${escapeHtml(d.id)}">Select</button>
 					</div>
 				</div>
-			`).join('');
-			$all('[data-adb-id]').forEach(btn => btn.addEventListener('click', () => adbProps(btn.getAttribute('data-adb-id'))));
-		});
+			</div>
+		`).join('');
+		$all('[data-adb-id]').forEach(btn => btn.addEventListener('click', () => adbProps(btn.getAttribute('data-adb-id'))));
+	}
+	function adbList() {
+		if (wsSend({action: 'adb.devices'})) return;
+		get('api/adb.php?action=devices').then(j => renderAdbDevices(j.data || []));
 	}
 	function adbProps(id) {
+		if (wsSend({action: 'adb.props', id})) return;
 		get('api/adb.php?action=props&id=' + encodeURIComponent(id)).then(j => {
 			renderTable($('#adbSummary'), j.data.summary || {});
 			$('#adbRaw').textContent = JSON.stringify(j.data.props || {}, null, 2);
@@ -97,6 +154,7 @@
 
 	// MTP
 	function mtp() {
+		if (wsSend({action: 'mtp.detect'})) return;
 		get('api/mtp.php?action=detect').then(j => {
 			$('#adbRaw').textContent = typeof j.data.raw === 'string' ? j.data.raw : JSON.stringify(j.data, null, 2);
 		});
@@ -105,27 +163,30 @@
 
 	// Samsung
 	function samsungAuto() {
+		if (wsSend({action: 'samsung.probe'})) return;
 		get('api/samsung.php?action=auto').then(j => {
 			$('#samsungRaw').textContent = (j.data.output?.stdout || '') + '\n' + (j.data.output?.stderr || '');
 		});
 	}
-	function samsungList() {
-		get('api/samsung.php?action=ports').then(j => {
-			const ports = j.data || [];
-			const container = $('#samsungPorts');
-			if (ports.length === 0) { container.innerHTML = '<div class="text-muted">No ports detected.</div>'; return; }
-			container.innerHTML = ports.map(p => `
-				<div class="col-12 col-md-6 col-lg-4">
-					<div class="card card-body p-2 d-flex justify-content-between align-items-center flex-row">
-						<div class="fw-semibold">${escapeHtml(p.port)}</div>
-						<button class="btn btn-sm btn-outline-primary" data-port="${escapeHtml(p.port)}">Probe</button>
-					</div>
+	function renderSamsungPorts(ports) {
+		const container = $('#samsungPorts');
+		if (!Array.isArray(ports) || ports.length === 0) { container.innerHTML = '<div class="text-muted">No ports detected.</div>'; return; }
+		container.innerHTML = ports.map(p => `
+			<div class="col-12 col-md-6 col-lg-4">
+				<div class="card card-body p-2 d-flex justify-content-between align-items-center flex-row">
+					<div class="fw-semibold">${escapeHtml(p.port)}</div>
+					<button class="btn btn-sm btn-outline-primary" data-port="${escapeHtml(p.port)}">Probe</button>
 				</div>
-			`).join('');
-			$all('[data-port]').forEach(btn => btn.addEventListener('click', () => samsungProbe(btn.getAttribute('data-port'))));
-		});
+			</div>
+		`).join('');
+		$all('[data-port]').forEach(btn => btn.addEventListener('click', () => samsungProbe(btn.getAttribute('data-port'))));
+	}
+	function samsungList() {
+		if (wsSend({action: 'samsung.ports'})) return;
+		get('api/samsung.php?action=ports').then(j => renderSamsungPorts(j.data || []));
 	}
 	function samsungProbe(port) {
+		if (wsSend({action: 'samsung.probe', port})) return;
 		get('api/samsung.php?action=probe&port=' + encodeURIComponent(port)).then(j => {
 			$('#samsungRaw').textContent = (j.data.output?.stdout || '') + '\n' + (j.data.output?.stderr || '');
 		});
