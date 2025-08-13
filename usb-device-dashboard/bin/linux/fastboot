@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+SELF="$(readlink -f "$0" 2>/dev/null || realpath "$0" 2>/dev/null || echo "$0")"
+DIR="$(dirname "$SELF")"
+BIN="$DIR/fastboot.bin"
+if [ -x "$BIN" ]; then exec "$BIN" "$@"; fi
+if command -v fastboot >/dev/null 2>&1; then
+	FOUND="$(command -v fastboot)"
+	if [ "$FOUND" != "$SELF" ]; then exec "$FOUND" "$@"; fi
+fi
+echo "fastboot not found. Place 'fastboot' as $BIN or install fastboot in PATH." >&2
+exit 127

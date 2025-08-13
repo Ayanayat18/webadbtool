@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+SELF="$(readlink -f "$0" 2>/dev/null || realpath "$0" 2>/dev/null || echo "$0")"
+DIR="$(dirname "$SELF")"
+BIN="$DIR/heimdall.bin"
+if [ -x "$BIN" ]; then exec "$BIN" "$@"; fi
+if command -v heimdall >/dev/null 2>&1; then
+	FOUND="$(command -v heimdall)"
+	if [ "$FOUND" != "$SELF" ]; then exec "$FOUND" "$@"; fi
+fi
+echo "heimdall not found. Place 'heimdall' as $BIN or install heimdall in PATH." >&2
+exit 127
